@@ -1,0 +1,54 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Generate the Android platform files (the repo only holds the app code)
+      - name: Generate Android project
+        run: |
+          if [ ! -d android ]; then
+            flutter create --platforms=android --org com.example --project-name daily_content_tracker /tmp/gen
+            cp -r /tmp/gen/android ./android
+          fi
+          sed -i 's/android:label="[^"]*"/android:label="Daily Content Tracker"/' android/app/src/main/AndroidManifest.xml
+
+      - name: Android permissions
+        run: |
+          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' android/app/src/main/AndroidManifest.xml
+
+      - run: flutter pub get
+
+      # Release build, one small APK per phone type (installs without a keystore)
+      - run: flutter build apk --release --split-per-abi
+
+      - name: Upload APK for most phones (arm64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-content-tracker-apk-most-phones
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+
+      - name: Upload APKs for older phones
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-content-tracker-apk-older-phones
+          path: |
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-x86_64-release.apk
