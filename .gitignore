@@ -1,9 +1,2 @@
-.dart_tool/
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-pubspec.lock
-.idea/
-*.iml
-local.properties
+node_modules
+out
